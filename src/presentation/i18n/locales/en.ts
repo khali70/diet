@@ -34,6 +34,8 @@ export const en = {
     exchange: 'exchanges',
   },
   today: {
+    sizeGuide: 'Size guide',
+    approximate: 'approximate',
     poolHeading: "Today's food",
     left: 'Still to eat',
     finished: 'Finished',

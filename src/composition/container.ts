@@ -1,4 +1,5 @@
 import { GetDayPool } from '@/application/usecases/get-day-pool'
+import { ListPortionHints } from '@/application/usecases/list-portion-hints'
 import { GetDayProgress } from '@/application/usecases/get-day-progress'
 import { GetPlanStatus } from '@/application/usecases/get-plan-status'
 import { ListExchangesFor } from '@/application/usecases/list-exchanges-for'
@@ -15,6 +16,7 @@ import { CryptoIdGenerator } from '@/infrastructure/adapters/crypto-id-generator
 import { SystemClock } from '@/infrastructure/adapters/system-clock'
 import { DietDatabase } from '@/infrastructure/db/schema'
 import { seedDatabase } from '@/infrastructure/db/seed-database'
+import { StaticPortionHintRepository } from '@/infrastructure/repositories/static-portion-hint-repository'
 import { DexieFoodRepository } from '@/infrastructure/repositories/dexie-food-repository'
 import { DexieLogRepository } from '@/infrastructure/repositories/dexie-log-repository'
 import { DexiePlanRepository } from '@/infrastructure/repositories/dexie-plan-repository'
@@ -29,6 +31,7 @@ import { DexieSettingsRepository } from '@/infrastructure/repositories/dexie-set
 export interface UseCases {
   readonly getDayProgress: GetDayProgress
   readonly getDayPool: GetDayPool
+  readonly listPortionHints: ListPortionHints
   readonly getPlanStatus: GetPlanStatus
   readonly listExchangesFor: ListExchangesFor
   readonly logMealEntry: LogMealEntry
@@ -61,6 +64,7 @@ export const createContainer = async (databaseName = 'diet'): Promise<UseCases> 
   return {
     getDayProgress,
     getDayPool: new GetDayPool(getDayProgress),
+    listPortionHints: new ListPortionHints(new StaticPortionHintRepository()),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
     logMealEntry: new LogMealEntry({ logs, foods, plans, clock, ids }),

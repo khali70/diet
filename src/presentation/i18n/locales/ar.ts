@@ -34,6 +34,8 @@ export const ar = {
     exchange: 'حصة',
   },
   today: {
+    sizeGuide: 'دليل الأحجام',
+    approximate: 'تقريبي',
     poolHeading: 'أكل النهارده',
     left: 'لسه عليك',
     finished: 'خلص',

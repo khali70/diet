@@ -113,3 +113,23 @@ Treadmill, 30 minutes, 5 days a week, heart rate 95 to 120 bpm, 8000 to 10000 st
 ## 6. Open product decision
 
 Whether the app shows estimated calories at all is still undecided by the user. Until they decide, build exchange-first. If estimates are later added, they go behind a flag, live in their own module, and never overwrite or blend with the coach's numbers.
+
+## Everyday portion sizes (not from the coach)
+
+The plan and the exchange tables are written in grams and contain no piece
+weights, so there is no way to log "one banana" from the source files alone.
+`src/infrastructure/seed/portion-hints.ts` adds everyday size references on top:
+a medium banana, a large egg, a slice of toast, a cup of milk.
+
+These are separate from the coach's data and are marked as such:
+
+- `source: 'usda'` are edible portion weights from the USDA FoodData Central
+  legacy portion tables, for example a medium banana at 118 g and a large egg
+  at 50 g without the shell.
+- `source: 'estimate'` are common local sizes with no published weight, for
+  example an Egyptian baladi loaf at roughly 90 g. The app labels these as
+  approximate, and they are worth checking on a scale once.
+
+They are hints for the amount field only. Nothing is logged from a hint without
+the user confirming it, and no hint carries a calorie or macro figure, because
+the source files contain none.

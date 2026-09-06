@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { PlanStatus } from '@/application/usecases/get-plan-status'
 import type { Food } from '@/domain/model/food'
+import type { PortionHint } from '@/domain/model/portion-hint'
 import type { LocalDate } from '@/domain/model/local-date'
 import { quantity } from '@/domain/model/quantity'
 import { allocateToPool, type DayPool, type PooledFood } from '@/domain/services/day-pool'
@@ -32,20 +33,22 @@ export const TodayScreen = ({ date }: Props) => {
     pool: DayPool
     status: PlanStatus
     foods: ReadonlyMap<string, Food>
+    hints: ReadonlyMap<string, readonly PortionHint[]>
   }>(async () => {
-    const [pool, status, allFoods] = await Promise.all([
+    const [pool, status, allFoods, hints] = await Promise.all([
       useCases.getDayPool.execute(date),
       useCases.getPlanStatus.execute(),
       useCases.foods.all(),
+      useCases.listPortionHints.execute(),
     ])
-    return { pool, status, foods: new Map(allFoods.map((food) => [food.id, food])) }
+    return { pool, status, foods: new Map(allFoods.map((food) => [food.id, food])), hints }
   }, [useCases, date])
 
   if (data === null) {
     return <p className="p-4 text-slate-400">{t('common.loading')}</p>
   }
 
-  const { pool, status, foods } = data
+  const { pool, status, foods, hints } = data
   const left = pool.foods.filter((food) => !isDone(food))
   const finished = pool.foods.filter(isDone)
 
@@ -80,6 +83,7 @@ export const TodayScreen = ({ date }: Props) => {
                 date={date}
                 food={food}
                 name={nameOf(food.food)}
+                hints={hints.get(food.foodId) ?? []}
                 onChanged={reload}
               />
             ))}
@@ -101,6 +105,7 @@ export const TodayScreen = ({ date }: Props) => {
                 date={date}
                 food={food}
                 name={nameOf(food.food)}
+                hints={hints.get(food.foodId) ?? []}
                 onChanged={reload}
               />
             ))}
@@ -142,11 +147,13 @@ const PooledFoodRow = ({
   date,
   food,
   name,
+  hints,
   onChanged,
 }: {
   date: LocalDate
   food: PooledFood
   name: string
+  hints: readonly PortionHint[]
   onChanged: () => Promise<void>
 }) => {
   const { t } = useTranslation()
@@ -174,6 +181,8 @@ const PooledFoodRow = ({
     await onChanged()
   }
 
+  // A hint in another unit is useless here: spoons cannot fill a gram field.
+  const sizeHints = hints.filter((hint) => hint.quantity.unit === food.planned.unit)
   const done = isDone(food)
   const over = food.remaining.amount < -0.0001
   const firstLine = food.lines[0]
@@ -261,6 +270,14 @@ const PooledFoodRow = ({
         </form>
       )}
 
+      {open && sizeHints.length > 0 && (
+        <div aria-label={t('today.sizeGuide')} className="flex flex-wrap gap-2">
+          {sizeHints.map((hint) => (
+            <SizeHintChip key={`${hint.labelEn}-${hint.quantity.amount}`} hint={hint} onPick={setAmount} />
+          ))}
+        </div>
+      )}
+
       {food.entries.length > 0 && (
         <ul className="flex flex-col gap-1">
           {food.entries.map((entry) => (
@@ -283,5 +300,26 @@ const PooledFoodRow = ({
         </ul>
       )}
     </li>
+  )
+}
+
+/**
+ * A tap target for people eating away from a scale. It fills the amount field
+ * rather than logging on its own, so an estimate can still be corrected before
+ * it is recorded.
+ */
+const SizeHintChip = ({ hint, onPick }: { hint: PortionHint; onPick: (amount: string) => void }) => {
+  const { t, i18n } = useTranslation()
+  const label = i18n.language === 'en' ? hint.labelEn : hint.labelAr
+
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(String(hint.quantity.amount))}
+      className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300"
+    >
+      {label} · {formatQuantity(hint.quantity, t)}
+      {hint.source === 'estimate' && <span className="text-slate-500"> ({t('today.approximate')})</span>}
+    </button>
   )
 }

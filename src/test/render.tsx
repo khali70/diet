@@ -3,6 +3,8 @@ import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import { GetDayPool } from '@/application/usecases/get-day-pool'
+import { ListPortionHints } from '@/application/usecases/list-portion-hints'
+import { StaticPortionHintRepository } from '@/infrastructure/repositories/static-portion-hint-repository'
 import { GetDayProgress } from '@/application/usecases/get-day-progress'
 import { GetPlanStatus } from '@/application/usecases/get-plan-status'
 import { ListExchangesFor } from '@/application/usecases/list-exchanges-for'
@@ -59,6 +61,7 @@ export const buildHarness = (options: {
   const useCases: UseCases = {
     getDayProgress,
     getDayPool: new GetDayPool(getDayProgress),
+    listPortionHints: new ListPortionHints(new StaticPortionHintRepository()),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
     logMealEntry: new LogMealEntry({ logs, foods, plans, clock, ids: new SequentialIdGenerator('log') }),
