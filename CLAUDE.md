@@ -30,7 +30,7 @@ src/
   application/     use cases, orchestration, DTOs
   infrastructure/  Dexie repositories, seed loading, export/import, clock
   presentation/    React components, hooks, routes, view models
-  main.tsx         composition root: the only place that wires concretes into ports
+  composition/     composition root (container.ts, main.tsx): the only place that wires concretes into ports
 ```
 
 **Dependency rule:** `presentation -> application -> domain` and `infrastructure -> domain`. `domain` imports nothing from the other three. `application` imports nothing from `infrastructure` or `presentation`. Violations are build failures, enforced by an ESLint boundary rule.
@@ -48,7 +48,7 @@ src/
 - **O**: adding a new food category or a new exchange table must not require editing existing category logic. Categories are data, not switch statements.
 - **L**: any `FoodRepository` implementation (Dexie, in-memory fake) is substitutable in every test and at runtime.
 - **I**: narrow ports. A use case that only reads gets a read-only port, not a fat repository with write methods.
-- **D**: use cases depend on abstractions in `domain/ports/`. Only `main.tsx` knows Dexie exists.
+- **D**: use cases depend on abstractions in `domain/ports/`. Only `src/composition/` knows Dexie exists.
 
 ## Testing rules
 
@@ -62,7 +62,7 @@ src/
 ## GitHub Pages
 
 - The app is served from a subpath (`https://<user>.github.io/diet/`). Vite `base` must be set accordingly, and every asset, route, manifest `start_url`, and service worker `scope` must respect it. Hardcoded absolute paths starting with `/` are a defect.
-- Routing uses hash routing, or a `404.html` copy of `index.html` for history routing. Pick one, document it, and cover it with an end to end test.
+- Routing is hash based (`HashRouter`). GitHub Pages has no rewrite rules, so a reloaded deep link on a history router would 404. Do not switch to a path router without adding a `404.html` fallback.
 - Deploy runs from GitHub Actions on push to `main`, building and publishing to Pages. Lint, typecheck, and tests gate the deploy.
 - No secrets, no runtime env vars. Anything configurable is a build-time constant or a user setting stored locally.
 
