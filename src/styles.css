@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+/*
+ * The interface is Arabic first and right to left by default. Direction is set
+ * on the document element from the stored language, so layout uses logical
+ * properties (start and end) rather than left and right.
+ */
+html {
+  color-scheme: dark;
+  background-color: #020617;
+}
+
+body {
+  margin: 0;
+  font-family: 'Noto Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Keep every tap target comfortably above the 44 px minimum. */
+button,
+a[role='button'] {
+  touch-action: manipulation;
+}
