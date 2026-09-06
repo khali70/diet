@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test'
 test('loads at the Pages subpath and shows the plan', async ({ page }) => {
   await page.goto('./')
 
-  await expect(page.getByRole('heading', { name: 'خطة اليوم' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'أكل النهارده' })).toBeVisible()
   await expect(page.getByText('أرز')).toBeVisible()
 })
 
@@ -25,7 +25,7 @@ test('a logged meal survives a reload', async ({ page }) => {
   await page.goto('./')
 
   const riceLine = page.locator('li').filter({ hasText: 'أرز' }).first()
-  await riceLine.getByRole('button', { name: 'سجل الكمية كاملة' }).click()
+  await riceLine.getByRole('button', { name: 'سجل الباقي' }).click()
   await expect(riceLine.getByText('تمام')).toBeVisible()
 
   await page.reload()
@@ -71,7 +71,7 @@ test('switches the interface to English and back', async ({ page }) => {
 
 test('works with the network switched off', async ({ page, context }) => {
   await page.goto('./')
-  await expect(page.getByRole('heading', { name: 'خطة اليوم' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'أكل النهارده' })).toBeVisible()
 
   // Give the service worker time to take control of the page.
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 15_000 })
@@ -79,6 +79,6 @@ test('works with the network switched off', async ({ page, context }) => {
   await context.setOffline(true)
   await page.reload()
 
-  await expect(page.getByRole('heading', { name: 'خطة اليوم' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'أكل النهارده' })).toBeVisible()
   await context.setOffline(false)
 })

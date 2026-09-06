@@ -1,3 +1,4 @@
+import { GetDayPool } from '@/application/usecases/get-day-pool'
 import { GetDayProgress } from '@/application/usecases/get-day-progress'
 import { GetPlanStatus } from '@/application/usecases/get-plan-status'
 import { ListExchangesFor } from '@/application/usecases/list-exchanges-for'
@@ -27,6 +28,7 @@ import { DexieSettingsRepository } from '@/infrastructure/repositories/dexie-set
  */
 export interface UseCases {
   readonly getDayProgress: GetDayProgress
+  readonly getDayPool: GetDayPool
   readonly getPlanStatus: GetPlanStatus
   readonly listExchangesFor: ListExchangesFor
   readonly logMealEntry: LogMealEntry
@@ -54,8 +56,11 @@ export const createContainer = async (databaseName = 'diet'): Promise<UseCases> 
   const settings = new DexieSettingsRepository(db, clock)
   const schema = new DexieSchemaInfo(db)
 
+  const getDayProgress = new GetDayProgress({ plans, logs, foods })
+
   return {
-    getDayProgress: new GetDayProgress({ plans, logs, foods }),
+    getDayProgress,
+    getDayPool: new GetDayPool(getDayProgress),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
     logMealEntry: new LogMealEntry({ logs, foods, plans, clock, ids }),

@@ -10,13 +10,13 @@ describe('App', () => {
   it('opens on the today screen', async () => {
     renderScreen(<App />, harness())
 
-    expect(await screen.findByRole('heading', { name: 'خطة اليوم' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'أكل النهارده' })).toBeInTheDocument()
   })
 
   it('sends an unknown route back to today rather than showing nothing', async () => {
     renderScreen(<App />, harness(), { route: '/does-not-exist' })
 
-    expect(await screen.findByRole('heading', { name: 'خطة اليوم' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'أكل النهارده' })).toBeInTheDocument()
   })
 
   it('renders the whole shell right to left in Arabic', async () => {

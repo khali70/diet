@@ -5,7 +5,7 @@ import type { PlanStatus } from '@/application/usecases/get-plan-status'
 import type { Food } from '@/domain/model/food'
 import type { LocalDate } from '@/domain/model/local-date'
 import { quantity } from '@/domain/model/quantity'
-import type { DayProgress, PlanItemProgress } from '@/domain/services/day-progress'
+import { allocateToPool, type DayPool, type PooledFood } from '@/domain/services/day-pool'
 import { AmountInput } from '../components/amount-input'
 import { ProgressBar } from '../components/progress-bar'
 import { formatAmount, formatPercent, formatQuantity } from '../format'
@@ -17,39 +17,50 @@ interface Props {
   date: LocalDate
 }
 
+/**
+ * The day as one bulk of food. The coach splits the plan across six meals, but
+ * the same food often appears in more than one, and the user eats when they eat.
+ * So the screen shows one row per food with what is left of it, and every meal
+ * it belongs to as a hint rather than as a separator.
+ */
 export const TodayScreen = ({ date }: Props) => {
   const { t } = useTranslation()
   const useCases = useUseCases()
   const nameOf = useFoodName()
 
   const { data, reload } = useAsyncData<{
-    progress: DayProgress
+    pool: DayPool
     status: PlanStatus
     foods: ReadonlyMap<string, Food>
   }>(async () => {
-    const [progress, status, allFoods] = await Promise.all([
-      useCases.getDayProgress.execute(date),
+    const [pool, status, allFoods] = await Promise.all([
+      useCases.getDayPool.execute(date),
       useCases.getPlanStatus.execute(),
       useCases.foods.all(),
     ])
-    return { progress, status, foods: new Map(allFoods.map((food) => [food.id, food])) }
+    return { pool, status, foods: new Map(allFoods.map((food) => [food.id, food])) }
   }, [useCases, date])
 
   if (data === null) {
     return <p className="p-4 text-slate-400">{t('common.loading')}</p>
   }
 
-  const { progress, status, foods } = data
+  const { pool, status, foods } = data
+  const left = pool.foods.filter((food) => !isDone(food))
+  const finished = pool.foods.filter(isDone)
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-24">
+    <div className="flex flex-col gap-6 p-4 pb-24">
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-slate-100">{t('today.heading')}</h1>
+        <h1 className="text-2xl font-semibold text-slate-100">{t('today.poolHeading')}</h1>
         <p className="text-sm text-slate-400">
           {t('today.dayOfPlan', { day: status.dayNumber, total: status.totalDays })}
         </p>
-        <ProgressBar ratio={progress.completion} label={t('today.heading')} />
-        <p className="text-xs text-slate-500">{formatPercent(progress.completion)}</p>
+        <ProgressBar ratio={pool.completion} label={t('today.poolHeading')} />
+        <p className="text-xs text-slate-500">
+          {formatPercent(pool.completion)} ·{' '}
+          {t('today.itemsDone', { done: finished.length, total: pool.foods.length })}
+        </p>
         {status.cheatMealUnlocked ? (
           <p className="rounded-lg bg-amber-950 p-3 text-sm text-amber-200">{t('today.cheatMealUnlocked')}</p>
         ) : (
@@ -57,67 +68,84 @@ export const TodayScreen = ({ date }: Props) => {
         )}
       </header>
 
-      {progress.slots.map((slot) => (
-        <section key={slot.slot} className="rounded-2xl bg-slate-900 p-4">
-          <div className="mb-3 flex items-baseline justify-between gap-2">
-            <h2 className="text-lg font-medium text-slate-100">{t(`slots.${slot.slot}`)}</h2>
-            <span className="text-xs text-slate-500">{formatPercent(slot.completion)}</span>
-          </div>
+      {pool.foods.length === 0 && <p className="text-sm text-slate-500">{t('today.nothingPlanned')}</p>}
 
-          {slot.items.length === 0 ? (
-            <p className="text-sm text-slate-500">{t('today.emptySlot')}</p>
-          ) : (
-            <ul className="flex flex-col gap-4">
-              {slot.items.map((item) => (
-                <PlanItemRow
-                  key={item.planItem.id}
-                  date={date}
-                  item={item}
-                  name={nameOf(item.food)}
-                  onChanged={reload}
-                />
-              ))}
-            </ul>
-          )}
-
-          {slot.extras.length > 0 && (
-            <div className="mt-4 border-t border-slate-800 pt-3">
-              <h3 className="mb-2 text-sm text-slate-400">{t('today.extras')}</h3>
-              <ul className="flex flex-col gap-1">
-                {slot.extras.map((extra) => (
-                  <li key={extra.id} className="flex items-center justify-between text-sm text-slate-300">
-                    <span>
-                      {nameOf(foods.get(extra.foodId))} {formatQuantity(extra.quantity, t)}
-                    </span>
-                    <button
-                      type="button"
-                      className="text-xs text-slate-500 underline"
-                      onClick={async () => {
-                        await useCases.removeMealEntry.execute(extra.id)
-                        await reload()
-                      }}
-                    >
-                      {t('today.undo')}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      {left.length > 0 && (
+        <section aria-label={t('today.left')} className="flex flex-col gap-3">
+          <h2 className="text-lg font-medium text-slate-100">{t('today.left')}</h2>
+          <ul className="flex flex-col gap-3">
+            {left.map((food) => (
+              <PooledFoodRow
+                key={food.key}
+                date={date}
+                food={food}
+                name={nameOf(food.food)}
+                onChanged={reload}
+              />
+            ))}
+          </ul>
         </section>
-      ))}
+      )}
+
+      {left.length === 0 && pool.foods.length > 0 && (
+        <p className="rounded-2xl bg-emerald-950 p-4 text-sm text-emerald-200">{t('today.allDone')}</p>
+      )}
+
+      {finished.length > 0 && (
+        <section aria-label={t('today.finished')} className="flex flex-col gap-3">
+          <h2 className="text-lg font-medium text-slate-400">{t('today.finished')}</h2>
+          <ul className="flex flex-col gap-3">
+            {finished.map((food) => (
+              <PooledFoodRow
+                key={food.key}
+                date={date}
+                food={food}
+                name={nameOf(food.food)}
+                onChanged={reload}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {pool.extras.length > 0 && (
+        <section aria-label={t('today.extras')} className="flex flex-col gap-2">
+          <h2 className="text-sm text-slate-400">{t('today.extras')}</h2>
+          <ul className="flex flex-col gap-1">
+            {pool.extras.map((extra) => (
+              <li key={extra.id} className="flex items-center justify-between text-sm text-slate-300">
+                <span>
+                  {nameOf(foods.get(extra.foodId))} {formatQuantity(extra.quantity, t)}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs text-slate-500 underline"
+                  onClick={async () => {
+                    await useCases.removeMealEntry.execute(extra.id)
+                    await reload()
+                  }}
+                >
+                  {t('today.undo')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }
 
-const PlanItemRow = ({
+const isDone = (food: PooledFood): boolean => food.remaining.amount <= 0.0001
+
+const PooledFoodRow = ({
   date,
-  item,
+  food,
   name,
   onChanged,
 }: {
   date: LocalDate
-  item: PlanItemProgress
+  food: PooledFood
   name: string
   onChanged: () => Promise<void>
 }) => {
@@ -126,59 +154,73 @@ const PlanItemRow = ({
   const [amount, setAmount] = useState('')
   const [open, setOpen] = useState(false)
 
+  /**
+   * One amount can span several planned lines, for example rice at breakfast
+   * and again at lunch. The domain decides how it is split; the screen only
+   * writes what it is told.
+   */
   const logAmount = async (value: number) => {
-    await useCases.logMealEntry.execute({
-      date,
-      slot: item.planItem.slot,
-      foodId: item.planItem.foodId,
-      quantity: quantity(value, item.planItem.quantity.unit),
-      planItemId: item.planItem.id,
-    })
+    for (const allocation of allocateToPool(food, quantity(value, food.planned.unit))) {
+      await useCases.logMealEntry.execute({
+        date,
+        slot: allocation.slot,
+        foodId: food.foodId,
+        quantity: allocation.quantity,
+        planItemId: allocation.planItemId,
+      })
+    }
     setAmount('')
     setOpen(false)
     await onChanged()
   }
 
-  const done = item.remaining.amount <= 0.0001
-  const over = item.remaining.amount < -0.0001
+  const done = isDone(food)
+  const over = food.remaining.amount < -0.0001
+  const firstLine = food.lines[0]
 
   return (
-    <li className="flex flex-col gap-2">
+    <li className="flex flex-col gap-2 rounded-2xl bg-slate-900 p-4">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-medium text-slate-100">{name}</span>
-        <span className="shrink-0 text-sm text-slate-400">{formatQuantity(item.planned, t)}</span>
-      </div>
-
-      <ProgressBar ratio={item.completion} label={name} />
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-        <span>
-          {t('today.consumed')}: {formatAmount(item.consumed)}
+        <span className="shrink-0 text-sm text-slate-400">
+          {over ? (
+            <span className="text-amber-400">
+              {t('today.over', { amount: formatAmount({ ...food.remaining, amount: -food.remaining.amount }) })}
+            </span>
+          ) : done ? (
+            <span className="text-emerald-400">{t('today.done')}</span>
+          ) : (
+            <>
+              {t('today.remaining')}: {formatQuantity(food.remaining, t)}
+            </>
+          )}
         </span>
-        {over ? (
-          <span className="text-amber-400">
-            {t('today.over', { amount: formatAmount({ ...item.remaining, amount: -item.remaining.amount }) })}
-          </span>
-        ) : done ? (
-          <span className="text-emerald-400">{t('today.done')}</span>
-        ) : (
-          <span>
-            {t('today.remaining')}: {formatQuantity(item.remaining, t)}
-          </span>
-        )}
       </div>
 
-      {item.unconvertible.length > 0 && (
-        <p className="text-xs text-amber-400">{t('today.unconvertible')}</p>
-      )}
+      <ProgressBar ratio={food.completion} label={name} />
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+        <span>
+          {t('today.consumed')}: {formatAmount(food.consumed)} {t('today.ofPlanned', { amount: formatQuantity(food.planned, t) })}
+        </span>
+        <span aria-label={t('today.mealsLabel')} className="flex flex-wrap gap-1">
+          {food.slots.map((slot) => (
+            <span key={slot} className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-400">
+              {t(`slots.${slot}`)}
+            </span>
+          ))}
+        </span>
+      </div>
+
+      {food.unconvertible.length > 0 && <p className="text-xs text-amber-400">{t('today.unconvertible')}</p>}
 
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => void logAmount(item.remaining.amount > 0 ? item.remaining.amount : item.planned.amount)}
+          onClick={() => void logAmount(done ? food.planned.amount : food.remaining.amount)}
           className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white"
         >
-          {t('today.logFull')}
+          {done ? t('today.logFull') : t('today.logRest')}
         </button>
         <button
           type="button"
@@ -187,12 +229,14 @@ const PlanItemRow = ({
         >
           {t('today.logPartial')}
         </button>
-        <Link
-          to={`/swap?food=${item.planItem.foodId}&amount=${item.planned.amount}&planItem=${item.planItem.id}`}
-          className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200"
-        >
-          {t('today.swap')}
-        </Link>
+        {firstLine !== undefined && (
+          <Link
+            to={`/swap?food=${food.foodId}&amount=${food.planned.amount}&planItem=${firstLine.planItem.id}`}
+            className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200"
+          >
+            {t('today.swap')}
+          </Link>
+        )}
       </div>
 
       {open && (
@@ -207,7 +251,7 @@ const PlanItemRow = ({
           <AmountInput
             label={t('today.logPartial')}
             value={amount}
-            unit={item.planned.unit}
+            unit={food.planned.unit}
             onChange={setAmount}
             autoFocus
           />
@@ -217,11 +261,13 @@ const PlanItemRow = ({
         </form>
       )}
 
-      {item.entries.length > 0 && (
+      {food.entries.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {item.entries.map((entry) => (
+          {food.entries.map((entry) => (
             <li key={entry.id} className="flex items-center justify-between text-xs text-slate-500">
-              <span>{formatQuantity(entry.quantity, t)}</span>
+              <span>
+                {formatQuantity(entry.quantity, t)} · {t(`slots.${entry.slot}`)}
+              </span>
               <button
                 type="button"
                 className="underline"

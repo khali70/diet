@@ -2,6 +2,7 @@ import { render, type RenderResult } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
+import { GetDayPool } from '@/application/usecases/get-day-pool'
 import { GetDayProgress } from '@/application/usecases/get-day-progress'
 import { GetPlanStatus } from '@/application/usecases/get-plan-status'
 import { ListExchangesFor } from '@/application/usecases/list-exchanges-for'
@@ -53,8 +54,11 @@ export const buildHarness = (options: {
     ...options.settings,
   })
 
+  const getDayProgress = new GetDayProgress({ plans, logs, foods })
+
   const useCases: UseCases = {
-    getDayProgress: new GetDayProgress({ plans, logs, foods }),
+    getDayProgress,
+    getDayPool: new GetDayPool(getDayProgress),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
     logMealEntry: new LogMealEntry({ logs, foods, plans, clock, ids: new SequentialIdGenerator('log') }),
