@@ -87,7 +87,10 @@ describe('seeded foods', () => {
   })
 
   it('matches the row counts transcribed from the exchange tables', () => {
-    const count = (category: string) => SEED_FOODS.filter((f) => f.category === category).length
+    // Only the coach's own rows count here. Foods the app mapped onto a table
+    // carry their own source and must not inflate the transcription.
+    const count = (category: string) =>
+      SEED_FOODS.filter((f) => f.category === category && f.source.startsWith('exchange-list:')).length
     expect(count('protein')).toBe(20)
     expect(count('carb')).toBe(21)
     expect(count('fat')).toBe(16)
@@ -95,6 +98,29 @@ describe('seeded foods', () => {
     expect(count('vegetable')).toBe(17)
     expect(count('dairy')).toBe(4)
     expect(count('legume')).toBe(8)
+  })
+
+  it('keeps the app mappings separate from the coach tables', () => {
+    const mapped = SEED_FOODS.filter((f) => f.source.startsWith('app-mapping:'))
+
+    expect(mapped.map((f) => f.id).sort()).toEqual([
+      'beetroot-salad',
+      'foul-medames',
+      'mixed-salad',
+      'orange-juice',
+      'skim-yogurt',
+    ])
+    for (const food of mapped) {
+      expect(food.reference, food.id).not.toBeNull()
+      expect(food.category, food.id).not.toBe('other')
+    }
+  })
+
+  it('leaves the foods that belong to no table unswappable', () => {
+    const other = SEED_FOODS.filter((f) => f.category === 'other')
+
+    expect(other.map((f) => f.id).sort()).toEqual(['ketchup-light', 'mayonnaise-light', 'turkish-coffee'])
+    expect(other.every((f) => f.reference === null)).toBe(true)
   })
 })
 

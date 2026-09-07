@@ -177,34 +177,55 @@ const legume = table('legume', 'exchange-list:legumes', [
 ])
 
 /**
- * Items the plan names that have no row in any exchange table. They are
- * tracked and logged like anything else but cannot be swapped, because the
- * coach never published an equivalent portion for them. Giving them a
- * reference would mean inventing data.
+ * Plan items the coach never gave a row of their own, mapped onto the table
+ * they clearly belong to so they can be swapped like anything else.
+ *
+ * These are the app's mapping, not the coach's, which is why the source says
+ * so. Each reference is derived from rows the coach did publish, and the basis
+ * is written next to it. Ask the coach before trusting one of these as much as
+ * a printed row.
+ */
+const mapped = [
+  // A plain salad is the leaf and fruit vegetables the coach measures at 100 g:
+  // lettuce, cucumber, tomato.
+  ...table('vegetable', 'app-mapping:vegetables', [
+    { id: 'mixed-salad', ar: 'سلطة', en: 'Mixed salad', ref: 100 },
+  ]),
+  // The named salad mixes beetroot and carrot, which the coach measures at 50 g,
+  // with tomato and cucumber at 100 g. The mean of its four vegetables is 75 g.
+  ...table('vegetable', 'app-mapping:vegetables', [
+    {
+      id: 'beetroot-salad',
+      ar: 'سلطة شمندر وطماطم وخيار وجزر وليمون',
+      en: 'Beetroot, tomato, cucumber, carrot and lemon salad',
+      ref: 75,
+    },
+  ]),
+  // The dairy table gives whole yogurt and skim milk the same 240 g portion, so
+  // skim yogurt takes it too.
+  ...table('dairy', 'app-mapping:dairy', [
+    { id: 'skim-yogurt', ar: 'زبادي خالي الدسم', en: 'Skim yogurt', ref: 240 },
+  ]),
+  // The legume table weighs fava beans dry, at 30 g. Dry beans take up roughly
+  // two and a half times their weight in water, so cooked foul is 75 g.
+  ...table('legume', 'app-mapping:legumes', [
+    { id: 'foul-medames', ar: 'فول مدمس بالخلطة المصرية', en: 'Foul medames, Egyptian style', ref: 75 },
+  ]),
+  // The fruit table gives a whole orange 130 g. An orange yields about half its
+  // weight as juice, so one fruit portion is 65 g of juice. Juice adds up fast:
+  // the 250 g glass in the plan is close to four portions of fruit.
+  ...table('fruit', 'app-mapping:fruit', [
+    { id: 'orange-juice', ar: 'عصير برتقال طبيعي', en: 'Fresh orange juice', ref: 65 },
+  ]),
+]
+
+/**
+ * Items the plan names that belong to no exchange table at all. They are
+ * tracked and logged like anything else but cannot be swapped, because there is
+ * nothing to swap them with: a sauce is not a portion of anything, and the
+ * coach counts coffee as a free drink.
  */
 const planOnly = table('other', 'plan:no-exchange-row', [
-  { id: 'mixed-salad', ar: 'سلطة', en: 'Mixed salad', ref: null },
-  {
-    id: 'beetroot-salad',
-    ar: 'سلطة شمندر وطماطم وخيار وجزر وليمون',
-    en: 'Beetroot, tomato, cucumber, carrot and lemon salad',
-    ref: null,
-  },
-  { id: 'orange-juice', ar: 'عصير برتقال طبيعي', en: 'Fresh orange juice', ref: null },
-  {
-    id: 'foul-medames',
-    ar: 'فول مدمس بالخلطة المصرية',
-    en: 'Foul medames, Egyptian style',
-    ref: null,
-    note: 'The legume table lists dry fava beans before cooking, which is a different measure from cooked foul.',
-  },
-  {
-    id: 'skim-yogurt',
-    ar: 'زبادي خالي الدسم',
-    en: 'Skim yogurt',
-    ref: null,
-    note: 'The dairy table lists skim milk and whole yogurt, but no skim yogurt row.',
-  },
   { id: 'ketchup-light', ar: 'كاتشب لايت', en: 'Light ketchup', ref: null },
   { id: 'mayonnaise-light', ar: 'مايونيز لايت', en: 'Light mayonnaise', ref: null },
   { id: 'turkish-coffee', ar: 'قهوة تركي سادة أو بسكر دايت', en: 'Turkish coffee, plain or with sweetener', ref: null },
@@ -218,5 +239,6 @@ export const SEED_FOODS: readonly Food[] = [
   ...vegetable,
   ...dairy,
   ...legume,
+  ...mapped,
   ...planOnly,
 ]
