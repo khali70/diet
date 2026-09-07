@@ -15,6 +15,7 @@ export type LogMealEntryErrorCode =
   | 'UNKNOWN_PLAN_ITEM'
   | 'NON_POSITIVE_QUANTITY'
   | 'SLOT_MISMATCH'
+  | 'MISSING_SLOT'
 
 export interface LogMealEntryError {
   readonly code: LogMealEntryErrorCode
@@ -23,7 +24,8 @@ export interface LogMealEntryError {
 
 export interface LogMealEntryInput {
   readonly date: LocalDate
-  readonly slot: MealSlot
+  /** Optional when a plan line is given: the line already says which meal it belongs to. */
+  readonly slot?: MealSlot
   readonly foodId: string
   readonly quantity: Quantity
   readonly planItemId?: string | null
@@ -52,23 +54,31 @@ export class LogMealEntry {
     }
 
     const planItemId = input.planItemId ?? null
+    let slot = input.slot
+
     if (planItemId !== null) {
       const planItem = await this.deps.plans.byId(planItemId)
       if (planItem === undefined) {
         return err({ code: 'UNKNOWN_PLAN_ITEM', detail: `no plan item with id ${planItemId}` })
       }
-      if (planItem.slot !== input.slot) {
+      if (slot === undefined) {
+        slot = planItem.slot
+      } else if (planItem.slot !== slot) {
         return err({
           code: 'SLOT_MISMATCH',
-          detail: `plan item ${planItemId} belongs to ${planItem.slot}, not ${input.slot}`,
+          detail: `plan item ${planItemId} belongs to ${planItem.slot}, not ${slot}`,
         })
       }
+    }
+
+    if (slot === undefined) {
+      return err({ code: 'MISSING_SLOT', detail: 'an entry outside the plan must say which meal it belongs to' })
     }
 
     const entry: LogEntry = {
       id: this.deps.ids.next(),
       date: input.date,
-      slot: input.slot,
+      slot,
       foodId: input.foodId,
       quantity: input.quantity,
       planItemId,

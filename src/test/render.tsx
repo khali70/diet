@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import { GetDayPool } from '@/application/usecases/get-day-pool'
+import { LogSwap } from '@/application/usecases/log-swap'
 import { ListPortionHints } from '@/application/usecases/list-portion-hints'
 import { StaticPortionHintRepository } from '@/infrastructure/repositories/static-portion-hint-repository'
 import { GetDayProgress } from '@/application/usecases/get-day-progress'
@@ -57,14 +58,17 @@ export const buildHarness = (options: {
   })
 
   const getDayProgress = new GetDayProgress({ plans, logs, foods })
+  const logMealEntry = new LogMealEntry({ logs, foods, plans, clock, ids: new SequentialIdGenerator('log') })
+  const logSwap = new LogSwap({ plans, logMealEntry, getDayProgress })
 
   const useCases: UseCases = {
     getDayProgress,
     getDayPool: new GetDayPool(getDayProgress),
+    logSwap,
     listPortionHints: new ListPortionHints(new StaticPortionHintRepository()),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
-    logMealEntry: new LogMealEntry({ logs, foods, plans, clock, ids: new SequentialIdGenerator('log') }),
+    logMealEntry,
     removeMealEntry: new RemoveMealEntry(logs),
     exportBackup: new ExportBackup({ logs, settings, schema: new InMemorySchemaInfo(), clock }),
     importBackup: new ImportBackup({ logWriter: logs, logArchive: logs, settings }),

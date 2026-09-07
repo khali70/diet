@@ -63,6 +63,12 @@ export const en = {
     unconvertible: 'This food is from another category, so it does not count towards this line',
   },
   swap: {
+    eatenLabel: 'How much did you eat?',
+    logButton: 'Log',
+    logged: 'Logged {{amount}} of {{food}}',
+    remainingAfter: '{{amount}} of {{food}} left for today',
+    lineDone: '{{food}} is done for today',
+    notCounted: 'This food is from another category, so it does not count towards the planned line',
     heading: 'Exchange calculator',
     sourceLabel: 'Food',
     amountLabel: 'Amount',
@@ -115,6 +121,7 @@ export const en = {
     confirm: 'Confirm',
   },
   errors: {
+    MISSING_SLOT: 'Say which meal this belongs to',
     UNKNOWN_FOOD: 'That food does not exist',
     UNKNOWN_PLAN_ITEM: 'That plan line does not exist',
     NON_POSITIVE_QUANTITY: 'Enter an amount greater than zero',

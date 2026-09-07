@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import type { ExchangeOption } from '@/application/usecases/list-exchanges-for'
+import type { LogSwapResult } from '@/application/usecases/log-swap'
 import type { Food } from '@/domain/model/food'
-import { quantity } from '@/domain/model/quantity'
+import { quantity, type Quantity } from '@/domain/model/quantity'
 import { PLAN_ALTERNATIVE_AMOUNTS } from '@/infrastructure/seed/plan'
 import { AmountInput } from '../components/amount-input'
 import { formatQuantity } from '../format'
@@ -33,11 +34,14 @@ export const SwapScreen = () => {
 
   const { data: foods } = useAsyncData<readonly Food[]>(() => useCases.foods.all(), [useCases])
 
+  const [logged, setLogged] = useState<{ result: LogSwapResult; foodName: string } | null>(null)
+  const [logError, setLogError] = useState<string | null>(null)
   const [foodId, setFoodId] = useState(params.get('food') ?? '')
   const [amount, setAmount] = useState(params.get('amount') ?? '')
   const [query, setQuery] = useState<Query | null>(initialQuery(params.get('food'), params.get('amount')))
 
   const selected = foods?.find((food) => food.id === foodId)
+  const plannedName = selected === undefined ? '' : nameOf(selected)
   const unit = selected?.reference?.unit ?? 'g'
 
   const { data: outcome } = useAsyncData<Outcome | null>(async () => {
@@ -96,6 +100,31 @@ export const SwapScreen = () => {
         </button>
       </form>
 
+      {logged !== null && (
+        <p role="status" className="rounded-2xl bg-emerald-950 p-4 text-sm text-emerald-100">
+          {t('swap.logged', {
+            amount: formatQuantity(logged.result.entry.quantity, t),
+            food: logged.foodName,
+          })}
+          <br />
+          {logged.result.remaining.amount <= 0.0001
+            ? t('swap.lineDone', { food: plannedName })
+            : t('swap.remainingAfter', {
+                amount: formatQuantity(logged.result.remaining, t),
+                food: plannedName,
+              })}
+          {!logged.result.counted && (
+            <span className="mt-1 block text-amber-300">{t('swap.notCounted')}</span>
+          )}
+        </p>
+      )}
+
+      {logError !== null && (
+        <p role="alert" className="rounded-lg bg-red-950 p-3 text-sm text-red-200">
+          {t(`errors.${logError}`, { defaultValue: t('errors.generic') })}
+        </p>
+      )}
+
       {outcome?.kind === 'error' && (
         <p role="alert" className="rounded-lg bg-red-950 p-3 text-sm text-red-200">
           {t(`errors.${outcome.code}`, { defaultValue: t('errors.generic') })}
@@ -128,6 +157,22 @@ export const SwapScreen = () => {
                       </span>
                     )}
                     {option.discouraged && <span className="text-xs text-amber-400">{t('swap.discouraged')}</span>}
+                    {planItemId !== null && (
+                      <LogSwapForm
+                        suggested={option.quantity}
+                        onLog={async (eaten) => {
+                          setLogError(null)
+                          const result = await useCases.logSwap.execute({
+                            date: useCases.clock.today(),
+                            planItemId,
+                            foodId: option.food.id,
+                            quantity: eaten,
+                          })
+                          if (result.ok) setLogged({ result: result.value, foodName: nameOf(option.food) })
+                          else setLogError(result.error.code)
+                        }}
+                      />
+                    )}
                   </li>
                 )
               })}
@@ -144,3 +189,38 @@ const initialQuery = (food: string | null, amount: string | null): Query | null 
   const value = Number(amount)
   return Number.isFinite(value) && value > 0 ? { foodId: food, amount: value } : null
 }
+
+/**
+ * Logs what was actually eaten of a substitute. The field starts at the full
+ * equivalent portion, because that is the common case, but the point of the
+ * screen is that the user can type the 100 g they really ate instead.
+ */
+const LogSwapForm = ({
+  suggested,
+  onLog,
+}: {
+  suggested: Quantity
+  onLog: (eaten: Quantity) => Promise<void>
+}) => {
+  const { t } = useTranslation()
+  const [amount, setAmount] = useState(String(round(suggested.amount)))
+
+  return (
+    <form
+      className="mt-2 flex items-end gap-2"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const value = Number(amount)
+        if (Number.isFinite(value) && value > 0) void onLog(quantity(value, suggested.unit))
+      }}
+    >
+      <AmountInput label={t('swap.eatenLabel')} value={amount} unit={suggested.unit} onChange={setAmount} />
+      <button type="submit" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white">
+        {t('swap.logButton')}
+      </button>
+    </form>
+  )
+}
+
+/** Grams are typed whole, spoons to one decimal, matching how the amounts are shown. */
+const round = (amount: number): number => Math.round(amount * 10) / 10

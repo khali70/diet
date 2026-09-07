@@ -1,4 +1,5 @@
 import { GetDayPool } from '@/application/usecases/get-day-pool'
+import { LogSwap } from '@/application/usecases/log-swap'
 import { ListPortionHints } from '@/application/usecases/list-portion-hints'
 import { GetDayProgress } from '@/application/usecases/get-day-progress'
 import { GetPlanStatus } from '@/application/usecases/get-plan-status'
@@ -32,6 +33,7 @@ export interface UseCases {
   readonly getDayProgress: GetDayProgress
   readonly getDayPool: GetDayPool
   readonly listPortionHints: ListPortionHints
+  readonly logSwap: LogSwap
   readonly getPlanStatus: GetPlanStatus
   readonly listExchangesFor: ListExchangesFor
   readonly logMealEntry: LogMealEntry
@@ -60,14 +62,17 @@ export const createContainer = async (databaseName = 'diet'): Promise<UseCases> 
   const schema = new DexieSchemaInfo(db)
 
   const getDayProgress = new GetDayProgress({ plans, logs, foods })
+  const logMealEntry = new LogMealEntry({ logs, foods, plans, clock, ids })
+  const logSwap = new LogSwap({ plans, logMealEntry, getDayProgress })
 
   return {
     getDayProgress,
     getDayPool: new GetDayPool(getDayProgress),
+    logSwap,
     listPortionHints: new ListPortionHints(new StaticPortionHintRepository()),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
-    logMealEntry: new LogMealEntry({ logs, foods, plans, clock, ids }),
+    logMealEntry,
     removeMealEntry: new RemoveMealEntry(logs),
     exportBackup: new ExportBackup({ logs, settings, schema, clock }),
     importBackup: new ImportBackup({ logWriter: logs, logArchive: logs, settings }),

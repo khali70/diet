@@ -63,6 +63,12 @@ export const ar = {
     unconvertible: 'الصنف ده مش من نفس المجموعة، فمش بيتحسب على السطر',
   },
   swap: {
+    eatenLabel: 'اتاكل قد ايه؟',
+    logButton: 'سجل',
+    logged: 'اتسجل {{amount}} {{food}}',
+    remainingAfter: 'باقي لك {{amount}} {{food}} النهارده',
+    lineDone: 'خلصت {{food}} النهارده',
+    notCounted: 'الصنف ده مش من نفس المجموعة، فمش بيتحسب على السطر',
     heading: 'حاسبة البدائل',
     sourceLabel: 'الصنف',
     amountLabel: 'الكمية',
@@ -113,6 +119,7 @@ export const ar = {
     confirm: 'تأكيد',
   },
   errors: {
+    MISSING_SLOT: 'اختار الوجبة اللي الأكل ده منها',
     UNKNOWN_FOOD: 'الصنف ده مش موجود',
     UNKNOWN_PLAN_ITEM: 'السطر ده مش موجود في الخطة',
     NON_POSITIVE_QUANTITY: 'لازم تكتب كمية أكبر من صفر',
