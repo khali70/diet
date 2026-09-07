@@ -1,3 +1,4 @@
+import { FOOD_CATEGORIES, type FoodCategory } from '../model/category'
 import type { LocalDate } from '../model/local-date'
 import type { LogEntry } from '../model/log-entry'
 import { MEAL_SLOTS, type MealSlot } from '../model/meal-slot'
@@ -31,9 +32,22 @@ export interface PooledFood {
   readonly unconvertible: readonly LogEntry[]
 }
 
+/**
+ * One exchange table's worth of the day, in the order the coach's tables are
+ * printed: protein, carbohydrates, fats, fruit, vegetables, dairy, legumes.
+ */
+export interface PooledCategory {
+  readonly category: FoodCategory
+  /** Unfinished foods first, so what is still owed is at the top of the group. */
+  readonly foods: readonly PooledFood[]
+  readonly finishedCount: number
+  readonly completion: number
+}
+
 export interface DayPool {
   readonly date: LocalDate
   readonly foods: readonly PooledFood[]
+  readonly groups: readonly PooledCategory[]
   /** Logged today without belonging to any planned line. */
   readonly extras: readonly LogEntry[]
   readonly completion: number
@@ -68,9 +82,35 @@ export const computeDayPool = (progress: DayProgress): DayPool => {
   return {
     date: progress.date,
     foods,
+    groups: groupByCategory(foods),
     extras: progress.slots.flatMap((slot) => slot.extras),
     completion: progress.completion,
   }
+}
+
+/** True once nothing of that food is owed for the day. */
+export const isPoolFinished = (food: PooledFood): boolean => food.remaining.amount <= 0.0001
+
+const groupByCategory = (foods: readonly PooledFood[]): readonly PooledCategory[] =>
+  FOOD_CATEGORIES.map((category) => {
+    const inCategory = foods
+      .filter((food) => food.food?.category === category)
+      .sort(unfinishedFirst)
+
+    return {
+      category,
+      foods: inCategory,
+      finishedCount: inCategory.filter(isPoolFinished).length,
+      completion: averageCompletion(inCategory),
+    }
+  }).filter((group) => group.foods.length > 0)
+
+const unfinishedFirst = (a: PooledFood, b: PooledFood): number =>
+  Number(isPoolFinished(a)) - Number(isPoolFinished(b))
+
+const averageCompletion = (foods: readonly PooledFood[]): number => {
+  if (foods.length === 0) return 0
+  return foods.reduce((sum, food) => sum + Math.min(food.completion, 1), 0) / foods.length
 }
 
 /**

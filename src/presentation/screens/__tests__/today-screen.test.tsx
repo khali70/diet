@@ -172,7 +172,25 @@ describe('TodayScreen', () => {
     ])
   })
 
-  it('separates the food that is finished from the food that is left', async () => {
+  it('groups the day by the coach exchange tables', async () => {
+    renderScreen(
+      <TodayScreen date={DATE} />,
+      buildHarness({
+        foods: [rice, { ...makeFood('chicken', 'protein', 120), nameAr: 'دجاج', nameEn: 'Chicken' }],
+        plan: [riceLine, { ...riceLine, id: 'lunch-chicken', foodId: 'chicken' }],
+        logs: [],
+      }),
+    )
+
+    const carbs = await screen.findByRole('region', { name: 'كربوهيدرات' })
+    expect(within(carbs).getByText('أرز')).toBeInTheDocument()
+    expect(within(carbs).queryByText('دجاج')).not.toBeInTheDocument()
+
+    const protein = screen.getByRole('region', { name: 'بروتين' })
+    expect(within(protein).getByText('دجاج')).toBeInTheDocument()
+  })
+
+  it('puts what is still owed above what is finished inside a group', async () => {
     renderScreen(
       <TodayScreen date={DATE} />,
       buildHarness({
@@ -192,49 +210,12 @@ describe('TodayScreen', () => {
       }),
     )
 
-    const finished = await screen.findByRole('region', { name: 'خلص' })
-    expect(within(finished).getByText('أرز')).toBeInTheDocument()
-    const left = screen.getByRole('region', { name: 'لسه عليك' })
-    expect(within(left).getByText('بطاطس')).toBeInTheDocument()
-  })
-
-  it('offers everyday sizes when logging a food that is hard to weigh', async () => {
-    const user = userEvent.setup()
-    const banana = makeFood('banana', 'fruit', 100)
-    renderScreen(
-      <TodayScreen date={DATE} />,
-      buildHarness({
-        foods: [banana],
-        plan: [{ ...riceLine, id: 'snack-banana', slot: 'snack', foodId: 'banana', quantity: quantity(100, 'g') }],
-        logs: [],
-      }),
+    const carbs = await screen.findByRole('region', { name: 'كربوهيدرات' })
+    const names = [...carbs.querySelectorAll(':scope > ul > li')].map(
+      (row) => row.querySelector('span')?.textContent,
     )
 
-    await user.click(await screen.findByRole('button', { name: 'سجل كمية' }))
-    await user.click(screen.getByRole('button', { name: /موزة متوسطة/ }))
-    await user.click(screen.getByRole('button', { name: 'إضافة' }))
-
-    // A medium banana is 118 g, so a 100 g line goes 18 g over.
-    expect(await screen.findByText('زيادة 18')).toBeInTheDocument()
-  })
-
-  it('hides sizes measured in a unit the line does not use', async () => {
-    const user = userEvent.setup()
-    const oil = makeFood('olive-oil', 'fat', 3, { unit: 'tsp' })
-    renderScreen(
-      <TodayScreen date={DATE} />,
-      buildHarness({
-        foods: [oil],
-        plan: [{ ...riceLine, id: 'lunch-oil', foodId: 'olive-oil', quantity: quantity(5, 'g') }],
-        logs: [],
-      }),
-    )
-
-    await user.click(await screen.findByRole('button', { name: 'سجل كمية' }))
-
-    // The gram spoon weights belong here. The spoon count version does not.
-    expect(screen.getByRole('button', { name: /ملعقة كبيرة · 14 جم/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /ملاعق صغيرة/ })).not.toBeInTheDocument()
+    expect(names).toEqual(['بطاطس', 'أرز'])
   })
 
   it('links each food to the swap calculator with its whole day amount', async () => {

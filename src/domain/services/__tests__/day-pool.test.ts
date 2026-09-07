@@ -95,6 +95,48 @@ describe('computeDayPool', () => {
   })
 })
 
+describe('day pool groups', () => {
+  it('groups foods by the exchange table they belong to', () => {
+    const pool = poolOf([
+      line('lunch-rice', 'lunch', 'rice', 150),
+      line('lunch-chicken', 'lunch', 'chicken', 150),
+      line('dinner-potato', 'dinner', 'potato', 200),
+    ])
+
+    expect(pool.groups.map((group) => [group.category, group.foods.length])).toEqual([
+      ['protein', 1],
+      ['carb', 2],
+    ])
+  })
+
+  it('orders the groups the way the coach tables are printed', () => {
+    const pool = poolOf([
+      line('lunch-oil', 'lunch', 'olive-oil', 2, 'tsp'),
+      line('lunch-rice', 'lunch', 'rice', 150),
+      line('lunch-chicken', 'lunch', 'chicken', 150),
+    ])
+
+    expect(pool.groups.map((group) => group.category)).toEqual(['protein', 'carb', 'fat'])
+  })
+
+  it('leaves out a table with nothing planned from it', () => {
+    const pool = poolOf([line('lunch-rice', 'lunch', 'rice', 150)])
+
+    expect(pool.groups.map((group) => group.category)).toEqual(['carb'])
+  })
+
+  it('puts what is still owed before what is finished', () => {
+    const pool = poolOf(
+      [line('breakfast-rice', 'breakfast', 'rice', 60), line('dinner-potato', 'dinner', 'potato', 200)],
+      [log('a', 'breakfast', 'rice', 60, 'breakfast-rice')],
+    )
+
+    expect(pool.groups[0]?.foods.map((food) => food.foodId)).toEqual(['potato', 'rice'])
+    expect(pool.groups[0]?.finishedCount).toBe(1)
+    expect(pool.groups[0]?.completion).toBeCloseTo(0.5)
+  })
+})
+
 describe('allocateToPool', () => {
   const twoLines = poolOf([line('breakfast-rice', 'breakfast', 'rice', 60), line('lunch-rice', 'lunch', 'rice', 150)])
   const pool = twoLines.foods[0]

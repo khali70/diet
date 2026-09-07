@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { PlanStatus } from '@/application/usecases/get-plan-status'
@@ -6,7 +6,13 @@ import type { Food } from '@/domain/model/food'
 import type { PortionHint } from '@/domain/model/portion-hint'
 import type { LocalDate } from '@/domain/model/local-date'
 import { quantity } from '@/domain/model/quantity'
-import { allocateToPool, type DayPool, type PooledFood } from '@/domain/services/day-pool'
+import {
+  allocateToPool,
+  isPoolFinished,
+  type DayPool,
+  type PooledCategory,
+  type PooledFood,
+} from '@/domain/services/day-pool'
 import { AmountInput } from '../components/amount-input'
 import { ProgressBar } from '../components/progress-bar'
 import { formatAmount, formatPercent, formatQuantity } from '../format'
@@ -49,8 +55,7 @@ export const TodayScreen = ({ date }: Props) => {
   }
 
   const { pool, status, foods, hints } = data
-  const left = pool.foods.filter((food) => !isDone(food))
-  const finished = pool.foods.filter(isDone)
+  const finished = pool.foods.filter(isPoolFinished)
 
   return (
     <div className="flex flex-col gap-6 p-4 pb-24">
@@ -73,45 +78,24 @@ export const TodayScreen = ({ date }: Props) => {
 
       {pool.foods.length === 0 && <p className="text-sm text-slate-500">{t('today.nothingPlanned')}</p>}
 
-      {left.length > 0 && (
-        <section aria-label={t('today.left')} className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium text-slate-100">{t('today.left')}</h2>
-          <ul className="flex flex-col gap-3">
-            {left.map((food) => (
-              <PooledFoodRow
-                key={food.key}
-                date={date}
-                food={food}
-                name={nameOf(food.food)}
-                hints={hints.get(food.foodId) ?? []}
-                onChanged={reload}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {left.length === 0 && pool.foods.length > 0 && (
+      {finished.length === pool.foods.length && pool.foods.length > 0 && (
         <p className="rounded-2xl bg-emerald-950 p-4 text-sm text-emerald-200">{t('today.allDone')}</p>
       )}
 
-      {finished.length > 0 && (
-        <section aria-label={t('today.finished')} className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium text-slate-400">{t('today.finished')}</h2>
-          <ul className="flex flex-col gap-3">
-            {finished.map((food) => (
-              <PooledFoodRow
-                key={food.key}
-                date={date}
-                food={food}
-                name={nameOf(food.food)}
-                hints={hints.get(food.foodId) ?? []}
-                onChanged={reload}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
+      {pool.groups.map((group) => (
+        <CategorySection key={group.category} group={group}>
+          {group.foods.map((food) => (
+            <PooledFoodRow
+              key={food.key}
+              date={date}
+              food={food}
+              name={nameOf(food.food)}
+              hints={hints.get(food.foodId) ?? []}
+              onChanged={reload}
+            />
+          ))}
+        </CategorySection>
+      ))}
 
       {pool.extras.length > 0 && (
         <section aria-label={t('today.extras')} className="flex flex-col gap-2">
@@ -141,7 +125,28 @@ export const TodayScreen = ({ date }: Props) => {
   )
 }
 
-const isDone = (food: PooledFood): boolean => food.remaining.amount <= 0.0001
+/**
+ * The coach's exchange tables are the user's mental model: a protein group, a
+ * carbohydrate group, a fat group. The day reads the same way, so what is owed
+ * from each table is visible without hunting through a flat list.
+ */
+const CategorySection = ({ group, children }: { group: PooledCategory; children: ReactNode }) => {
+  const { t } = useTranslation()
+  const label = t(`categories.${group.category}`)
+
+  return (
+    <section aria-label={label} className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-lg font-medium text-slate-100">{label}</h2>
+        <span className="text-xs text-slate-500">
+          {t('today.itemsDone', { done: group.finishedCount, total: group.foods.length })}
+        </span>
+      </div>
+      <ProgressBar ratio={group.completion} label={label} />
+      <ul className="flex flex-col gap-3">{children}</ul>
+    </section>
+  )
+}
 
 const PooledFoodRow = ({
   date,
@@ -183,7 +188,7 @@ const PooledFoodRow = ({
 
   // A hint in another unit is useless here: spoons cannot fill a gram field.
   const sizeHints = hints.filter((hint) => hint.quantity.unit === food.planned.unit)
-  const done = isDone(food)
+  const done = isPoolFinished(food)
   const over = food.remaining.amount < -0.0001
   const firstLine = food.lines[0]
 
