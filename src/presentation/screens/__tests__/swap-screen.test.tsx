@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { screen, within } from '@testing-library/react'
 import { Route, Routes } from 'react-router-dom'
 import { SwapScreen } from '../swap-screen'
+import type { PlanItem } from '@/domain/model/plan-item'
+import { quantity } from '@/domain/model/quantity'
 import { makeFood } from '@/test/factories'
 import { buildHarness, renderScreen } from '@/test/render'
 
@@ -21,14 +23,80 @@ const ketchup = { ...makeFood('ketchup-light', 'other', null), nameAr: 'كاتش
 
 const foods = [rice, potato, oats, chicken, oliveOil, walnut, almond, ketchup]
 
-const renderAt = (route: string, language: 'ar' | 'en' = 'ar') =>
-  renderScreen(
+const riceLine: PlanItem = {
+  id: 'lunch-rice',
+  slot: 'lunch',
+  order: 0,
+  foodId: 'rice',
+  quantity: quantity(150, 'g'),
+  planAlternativeIds: [],
+}
+
+const renderAt = (
+  route: string,
+  language: 'ar' | 'en' = 'ar',
+  harness = buildHarness({ foods }),
+) => ({
+  harness,
+  ...renderScreen(
     <Routes>
       <Route path="/swap" element={<SwapScreen />} />
     </Routes>,
-    buildHarness({ foods }),
+    harness,
     { route, language },
-  )
+  ),
+})
+
+describe('SwapScreen logging', () => {
+  const withPlan = () => buildHarness({ foods, plan: [riceLine] })
+
+  it('does not offer to log anything when opened without a plan line', async () => {
+    renderAt('/swap?food=rice&amount=150')
+
+    await screen.findByRole('region', { name: 'تقدر تاكل بدالها' })
+    expect(screen.queryByRole('button', { name: 'سجل' })).not.toBeInTheDocument()
+  })
+
+  it('logs what the user actually ate and says what is left of the planned food', async () => {
+    const user = userEvent.setup()
+    const { harness } = renderAt('/swap?food=rice&amount=150&planItem=lunch-rice', 'ar', withPlan())
+
+    const results = await screen.findByRole('region', { name: 'تقدر تاكل بدالها' })
+    const potatoRow = within(results)
+      .getAllByRole('listitem')
+      .find((row) => row.textContent?.includes('بطاطس'))
+    expect(potatoRow).toBeDefined()
+    if (potatoRow === undefined) return
+
+    // The field opens at the full swap, 650 g of potato, and the user replaces
+    // it with the 260 g they really ate. That is one rice portion of 60 g.
+    const field = within(potatoRow).getByRole('spinbutton')
+    expect(field).toHaveValue(650)
+    await user.clear(field)
+    await user.type(field, '260')
+    await user.click(within(potatoRow).getByRole('button', { name: 'سجل' }))
+
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent('اتسجل 260 جم بطاطس')
+    expect(status).toHaveTextContent('باقي لك 90 جم أرز')
+    await expect(harness.logs.all()).resolves.toHaveLength(1)
+  })
+
+  it('says the line is finished when the substitute covers all of it', async () => {
+    const user = userEvent.setup()
+    renderAt('/swap?food=rice&amount=150&planItem=lunch-rice', 'ar', withPlan())
+
+    const results = await screen.findByRole('region', { name: 'تقدر تاكل بدالها' })
+    const potatoRow = within(results)
+      .getAllByRole('listitem')
+      .find((row) => row.textContent?.includes('بطاطس'))
+    if (potatoRow === undefined) throw new Error('no potato row')
+
+    await user.click(within(potatoRow).getByRole('button', { name: 'سجل' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('خلصت أرز النهارده')
+  })
+})
 
 describe('SwapScreen', () => {
   it('calculates the coach worked example when opened from a plan line', async () => {
