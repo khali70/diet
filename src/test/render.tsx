@@ -27,6 +27,7 @@ import {
   InMemoryFoodRepository,
   InMemoryLogRepository,
   InMemoryPlanRepository,
+  RecordingAppUpdater,
   InMemorySchemaInfo,
   InMemorySettingsRepository,
   SequentialIdGenerator,
@@ -36,6 +37,7 @@ export interface Harness {
   useCases: UseCases
   logs: InMemoryLogRepository
   clock: FixedClock
+  appUpdater: RecordingAppUpdater
 }
 
 /** Wires the screens to in-memory fakes. No Dexie, no real clock. */
@@ -57,6 +59,7 @@ export const buildHarness = (options: {
     ...options.settings,
   })
 
+  const appUpdater = new RecordingAppUpdater()
   const getDayProgress = new GetDayProgress({ plans, logs, foods })
   const logMealEntry = new LogMealEntry({ logs, foods, plans, clock, ids: new SequentialIdGenerator('log') })
   const logSwap = new LogSwap({ plans, logMealEntry, getDayProgress })
@@ -65,6 +68,7 @@ export const buildHarness = (options: {
     getDayProgress,
     getDayPool: new GetDayPool(getDayProgress),
     logSwap,
+    appUpdater,
     listPortionHints: new ListPortionHints(new StaticPortionHintRepository()),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),
@@ -79,7 +83,7 @@ export const buildHarness = (options: {
     logArchive: logs,
   }
 
-  return { useCases, logs, clock }
+  return { useCases, logs, clock, appUpdater }
 }
 
 export const renderScreen = (

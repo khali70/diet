@@ -98,6 +98,9 @@ export const en = {
     fats: 'Fat',
   },
   settings: {
+    appVersion: 'App version',
+    updateNote: 'The app is stored on this device so it works offline. If a new version does not show up, clear the stored code. Your log is not touched.',
+    checkForUpdate: 'Load the newest version',
     heading: 'Settings',
     language: 'Language',
     arabic: 'العربية',

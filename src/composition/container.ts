@@ -1,3 +1,4 @@
+import type { AppUpdater } from '@/domain/ports/app-updater'
 import { GetDayPool } from '@/application/usecases/get-day-pool'
 import { LogSwap } from '@/application/usecases/log-swap'
 import { ListPortionHints } from '@/application/usecases/list-portion-hints'
@@ -17,6 +18,7 @@ import { CryptoIdGenerator } from '@/infrastructure/adapters/crypto-id-generator
 import { SystemClock } from '@/infrastructure/adapters/system-clock'
 import { DietDatabase } from '@/infrastructure/db/schema'
 import { seedDatabase } from '@/infrastructure/db/seed-database'
+import { ServiceWorkerUpdater } from '@/infrastructure/adapters/service-worker-updater'
 import { StaticPortionHintRepository } from '@/infrastructure/repositories/static-portion-hint-repository'
 import { DexieFoodRepository } from '@/infrastructure/repositories/dexie-food-repository'
 import { DexieLogRepository } from '@/infrastructure/repositories/dexie-log-repository'
@@ -34,6 +36,7 @@ export interface UseCases {
   readonly getDayPool: GetDayPool
   readonly listPortionHints: ListPortionHints
   readonly logSwap: LogSwap
+  readonly appUpdater: AppUpdater
   readonly getPlanStatus: GetPlanStatus
   readonly listExchangesFor: ListExchangesFor
   readonly logMealEntry: LogMealEntry
@@ -69,6 +72,7 @@ export const createContainer = async (databaseName = 'diet'): Promise<UseCases> 
     getDayProgress,
     getDayPool: new GetDayPool(getDayProgress),
     logSwap,
+    appUpdater: new ServiceWorkerUpdater(),
     listPortionHints: new ListPortionHints(new StaticPortionHintRepository()),
     getPlanStatus: new GetPlanStatus(settings, clock),
     listExchangesFor: new ListExchangesFor(foods),

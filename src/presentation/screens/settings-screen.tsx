@@ -149,6 +149,18 @@ export const SettingsScreen = () => {
         {message !== null && <p className="text-sm text-slate-300">{message}</p>}
       </section>
 
+      <section className="flex flex-col gap-3 rounded-2xl bg-slate-900 p-4">
+        <h2 className="text-lg font-medium text-slate-100">{t('settings.appVersion')}</h2>
+        <p className="text-sm text-slate-400">{t('settings.updateNote')}</p>
+        <button
+          type="button"
+          onClick={() => void useCases.appUpdater.refresh()}
+          className="self-start rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200"
+        >
+          {t('settings.checkForUpdate')}
+        </button>
+      </section>
+
       <section className="flex flex-col gap-3 rounded-2xl border border-red-900 bg-slate-900 p-4">
         <h2 className="text-lg font-medium text-red-300">{t('settings.dangerZone')}</h2>
         {confirmingClear ? (

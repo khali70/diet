@@ -100,4 +100,28 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('تم مسح التسجيلات')).toBeInTheDocument()
     await expect(harness.logs.all()).resolves.toHaveLength(0)
   })
+
+  it('reloads the newest build without touching the log', async () => {
+    const user = userEvent.setup()
+    const harness = buildHarness({
+      foods: [],
+      logs: [
+        {
+          id: 'a',
+          date: localDate('2026-09-06'),
+          slot: 'lunch',
+          foodId: 'rice',
+          quantity: quantity(100, 'g'),
+          planItemId: null,
+          loggedAt: '2026-09-06T13:00:00.000Z',
+        },
+      ],
+    })
+    renderScreen(<SettingsScreen />, harness)
+
+    await user.click(await screen.findByRole('button', { name: 'حمل أحدث نسخة' }))
+
+    expect(harness.appUpdater.refreshCount).toBe(1)
+    await expect(harness.logs.all()).resolves.toHaveLength(1)
+  })
 })

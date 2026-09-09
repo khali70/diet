@@ -211,6 +211,15 @@ const mapped = [
   ...table('legume', 'app-mapping:legumes', [
     { id: 'foul-medames', ar: 'فول مدمس بالخلطة المصرية', en: 'Foul medames, Egyptian style', ref: 75 },
   ]),
+  // Soy is a protein the coach never listed. The protein rows land around 30 g
+  // of protein each: 120 g of cooked chicken breast, 250 g of whole egg, 100 g
+  // of drained tuna. Dry soy mince is roughly half protein by weight, so 60 g
+  // dry is one portion, and boiled soybeans are roughly a sixth protein, so
+  // 175 g cooked is one portion.
+  ...table('protein', 'app-mapping:protein', [
+    { id: 'soy-mince', ar: 'لحم الصويا المجفف', en: 'Soy mince, dry', ref: 60 },
+    { id: 'soybeans', ar: 'فول الصويا المسلوق', en: 'Soybeans, boiled', ref: 175 },
+  ]),
   // The fruit table gives a whole orange 130 g. An orange yields about half its
   // weight as juice, so one fruit portion is 65 g of juice. Juice adds up fast:
   // the 250 g glass in the plan is close to four portions of fruit.

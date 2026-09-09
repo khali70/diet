@@ -109,6 +109,8 @@ describe('seeded foods', () => {
       'mixed-salad',
       'orange-juice',
       'skim-yogurt',
+      'soy-mince',
+      'soybeans',
     ])
     for (const food of mapped) {
       expect(food.reference, food.id).not.toBeNull()

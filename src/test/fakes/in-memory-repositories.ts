@@ -5,6 +5,7 @@ import { toLocalDate } from '@/domain/model/local-date'
 import type { LogEntry } from '@/domain/model/log-entry'
 import type { PlanItem } from '@/domain/model/plan-item'
 import type { Settings } from '@/domain/model/settings'
+import type { AppUpdater } from '@/domain/ports/app-updater'
 import type { Clock } from '@/domain/ports/clock'
 import type { FoodReader } from '@/domain/ports/food-repository'
 import type { IdGenerator } from '@/domain/ports/id-generator'
@@ -126,5 +127,15 @@ export class SequentialIdGenerator implements IdGenerator {
   next(): string {
     this.counter += 1
     return `${this.prefix}-${this.counter}`
+  }
+}
+
+/** Records the request instead of throwing the page away. */
+export class RecordingAppUpdater implements AppUpdater {
+  refreshCount = 0
+
+  refresh(): Promise<void> {
+    this.refreshCount += 1
+    return Promise.resolve()
   }
 }
